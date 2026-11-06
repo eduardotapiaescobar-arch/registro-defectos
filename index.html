@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control de Defectos</title>
+  <style>
+    :root {
+      --primary: #007aff;
+      --bg-color: #f2f2f7;
+      --card-bg: #ffffff;
+      --text-main: #1c1c1e;
+      --text-muted: #8e8e93;
+      --danger: #ff3b30;
+      --border: #c6c6c8;
+      --nav-height: 60px;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: var(--nav-height); }
+    
+    header { background-color: var(--card-bg); padding: 16px; text-align: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; font-weight: 600; font-size: 1.1rem; }
+    
+    .view { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+    .view.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .card { background: var(--card-bg); border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    
+    .input-group { margin-bottom: 12px; }
+    .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+    input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background-color: var(--bg-color); outline: none; }
+    input:focus, select:focus { border-color: var(--primary); }
+    
+    .btn { padding: 10px 16px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-block; text-align: center; width: 100%; }
+    .btn-primary { background-color: var(--primary); color: white; }
+    .btn-danger { background-color: var(--danger); color: white; }
+    .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .flex-row { display: flex; gap: 8px; align-items: center; }
+    
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .list-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .item-title { font-weight: 600; }
+    .item-subtitle { font-size: 0.85rem; color: var(--text-muted); }
+    .item-value { font-weight: bold; font-size: 1.1rem; color: var(--primary); }
+    
+    /* Navbar Inferior */
+    nav { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height); background: var(--card-bg); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+    .nav-btn { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border: none; background: transparent; font-size: 0.75rem; color: var(--text-muted); cursor: pointer; }
+    .nav-btn.active { color: var(--primary); font-weight: 600; }
+    .nav-btn span { font-size: 1.2rem; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+  <header id="header-title">Registro General</header>
+
+  <!-- VISTA 1: REGISTRO GENERAL -->
+  <main id="view-general" class="view active">
+    <div class="card">
+      <h3 class="card-title">Ingresar Defecto</h3>
+      <div class="input-group">
+        <label>Producto</label>
+        <select id="gen-producto" onchange="actualizarDefectos()">
+          <option value="">Seleccione un producto...</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Defecto</label>
+        <select id="gen-defecto">
+          <option value="">Seleccione un defecto...</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Cantidad</label>
+        <input type="number" id="gen-cantidad" placeholder="Ej: 5" min="1">
+      </div>
+      <button class="btn btn-primary" onclick="guardarRegistro()">Guardar Registro</button>
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+        <h3 style="font-size: 1.1rem; font-weight: 600;">Historial Reciente</h3>
+        <button class="btn btn-outline" style="width: auto; padding: 4px 8px; font-size: 0.8rem;" onclick="exportarCSV()">Exportar CSV</button>
+      </div>
+      <div id="historial-lista">
+        <!-- Registros inyectados por JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- VISTA 2: AJUSTES -->
+  <main id="view-ajustes" class="view">
+    <div class="card">
+      <h3 class="card-title">Agregar Nuevo Producto</h3>
+      <div class="flex-row">
+        <input type="text" id="nuevo-producto-nombre" placeholder="Nombre del producto">
+        <button class="btn btn-primary" style="width: auto;" onclick="crearProducto()">Crear</button>
+      </div>
+    </div>
+
+    <div id="lista-ajustes-productos">
+      <!-- Tarjetas de productos y sus defectos inyectadas por JS -->
+    </div>
+  </main>
+
+  <!-- NAVEGACIÓN -->
+  <nav>
+    <button class="nav-btn active" onclick="cambiarTab('general', this)">
+      <span>📝</span> General
+    </button>
+    <button class="nav-btn" onclick="cambiarTab('ajustes', this)">
+      <span>⚙️</span> Ajustes
+    </button>
+  </nav>
+
+  <script>
+    // --- ESTADO DE LA APLICACIÓN ---
+    let appData = {
+      productos: [], 
+      registros: []
+    };
+
+    const STORAGE_KEY = 'DefectosApp_Data';
+
+    // --- INICIALIZACIÓN ---
+    window.onload = () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        appData = JSON.parse(stored);
+      } else {
+        // Datos de ejemplo para la primera vez
+        appData.productos.push({
+          id: generateUUID(),
+          nombre: "Caja de Cambios A1",
+          defectos: [
+            { id: generateUUID(), nombre: "Fisura externa" },
+            { id: generateUUID(), nombre: "Falta de aceite" }
+          ]
+        });
+        guardarDatos();
+      }
+      renderGeneral();
+      renderAjustes();
+    };
+
+    function guardarDatos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    }
+
+    function generateUUID() {
+      return 'yxxx-yxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    // --- NAVEGACIÓN ---
+    function cambiarTab(tab, element) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById('view-' + tab).classList.add('active');
+      element.classList.add('active');
+      
+      document.getElementById('header-title').innerText = tab === 'general' ? 'Registro General' : 'Ajustes de Catálogo';
+      
+      if(tab === 'general') renderGeneral();
+      if(tab === 'ajustes') renderAjustes();
+    }
+
+    // --- LÓGICA DE REGISTRO GENERAL ---
+    function renderGeneral() {
+      const selectProd = document.getElementById('gen-producto');
+      selectProd.innerHTML = '<option value="">Seleccione un producto...</option>';
+      appData.productos.forEach(p => {
+        selectProd.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+      });
+      
+      actualizarDefectos();
+      renderHistorial();
+    }
+
+    function actualizarDefectos() {
+      const prodId = document.getElementById('gen-producto').value;
+      const selectDef = document.getElementById('gen-defecto');
+      selectDef.innerHTML = '<option value="">Seleccione un defecto...</option>';
+      
+      if (!prodId) return;
+      
+      const prod = appData.productos.find(p => p.id === prodId);
+      if (prod && prod.defectos) {
+        prod.defectos.forEach(d => {
+          selectDef.innerHTML += `<option value="${d.id}">${d.nombre}</option>`;
+        });
+      }
+    }
+
+    function guardarRegistro() {
+      const prodId = document.getElementById('gen-producto').value;
+      const defId = document.getElementById('gen-defecto').value;
+      const cantStr = document.getElementById('gen-cantidad').value;
+      const cant = parseInt(cantStr);
+
+      if (!prodId || !defId || isNaN(cant) || cant <= 0) {
+        alert("Por favor completa todos los campos correctamente.");
+        return;
+      }
+
+      const prod = appData.productos.find(p => p.id === prodId);
+      const def = prod.defectos.find(d => d.id === defId);
+
+      const nuevoRegistro = {
+        id: generateUUID(),
+        fecha: new Date().toISOString(),
+        productoId: prod.id,
+        productoNombre: prod.nombre,
+        defectoId: def.id,
+        defectoNombre: def.nombre,
+        cantidad: cant
+      };
+
+      appData.registros.unshift(nuevoRegistro); // Insertar al inicio
+      guardarDatos();
+      
+      // Limpiar formulario
+      document.getElementById('gen-cantidad').value = "";
+      document.getElementById('gen-defecto').value = "";
+      
+      renderHistorial();
+    }
+
+    function renderHistorial() {
+      const contenedor = document.getElementById('historial-lista');
+      if (appData.registros.length === 0) {
+        contenedor.innerHTML = '<p class="item-subtitle">No hay registros aún.</p>';
+        return;
+      }
+
+      contenedor.innerHTML = appData.registros.map(r => {
+        const fechaObj = new Date(r.fecha);
+        const fechaFormato = `${fechaObj.toLocaleDateString()} ${fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        
+        return `
+          <div class="list-item">
+            <div style="flex: 1;">
+              <div class="item-title">${r.productoNombre}</div>
+              <div class="item-subtitle" style="color: var(--danger); font-weight: bold;">${r.defectoNombre}</div>
+              <div class="item-subtitle" style="font-size: 0.75rem;">${fechaFormato}</div>
+            </div>
+            <div class="item-value">${r.cantidad} unds</div>
+            <button onclick="eliminarRegistro('${r.id}')" style="background: none; border: none; margin-left: 12px; color: var(--danger); cursor:pointer; font-size: 1.2rem;">🗑️</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function eliminarRegistro(id) {
+      if(confirm("¿Eliminar este registro de defecto?")) {
+        appData.registros = appData.registros.filter(r => r.id !== id);
+        guardarDatos();
+        renderHistorial();
+      }
+    }
+
+    // --- LÓGICA DE AJUSTES (PRODUCTOS Y DEFECTOS) ---
+    function renderAjustes() {
+      const contenedor = document.getElementById('lista-ajustes-productos');
+      if (appData.productos.length === 0) {
+        contenedor.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No hay productos creados.</p>';
+        return;
+      }
+
+      contenedor.innerHTML = appData.productos.map(p => `
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 1.1rem; color: var(--primary);">${p.nombre}</h3>
+            <button onclick="eliminarProducto('${p.id}')" class="btn btn-outline" style="width: auto; padding: 4px 8px; color: var(--danger); border-color: var(--danger);">Borrar Producto</button>
+          </div>
+          
+          <div class="flex-row" style="margin-bottom: 12px;">
+            <input type="text" id="nuevo-defecto-${p.id}" placeholder="Ingresar nuevo defecto">
+            <button class="btn btn-outline" style="width: auto;" onclick="crearDefecto('${p.id}')">Agregar</button>
+          </div>
+
+          <div>
+            ${p.defectos.length === 0 ? '<p class="item-subtitle">Sin defectos configurados.</p>' : ''}
+            ${p.defectos.map(d => `
+              <div class="list-item" style="padding: 8px 0;">
+                <span style="font-size: 0.95rem;">- ${d.nombre}</span>
+                <button onclick="eliminarDefecto('${p.id}', '${d.id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">❌</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function crearProducto() {
+      const input = document.getElementById('nuevo-producto-nombre');
+      const nombre = input.value.trim();
+      if (!nombre) return;
+
+      appData.productos.push({
+        id: generateUUID(),
+        nombre: nombre,
+        defectos: []
+      });
+      
+      guardarDatos();
+      input.value = '';
+      renderAjustes();
+    }
+
+    function eliminarProducto(id) {
+      if (confirm("¿Estás seguro de eliminar este producto y todos sus defectos?")) {
+        appData.productos = appData.productos.filter(p => p.id !== id);
+        guardarDatos();
+        renderAjustes();
+      }
+    }
+
+    function crearDefecto(productoId) {
+      const input = document.getElementById(`nuevo-defecto-${productoId}`);
+      const nombre = input.value.trim();
+      if (!nombre) return;
+
+      const prod = appData.productos.find(p => p.id === productoId);
+      if (prod) {
+        prod.defectos.push({
+          id: generateUUID(),
+          nombre: nombre
+        });
+        guardarDatos();
+        renderAjustes();
+      }
+    }
+
+    function eliminarDefecto(productoId, defectoId) {
+      const prod = appData.productos.find(p => p.id === productoId);
+      if (prod) {
+        prod.defectos = prod.defectos.filter(d => d.id !== defectoId);
+        guardarDatos();
+        renderAjustes();
+      }
+    }
+
+    // --- EXPORTAR ---
+    function exportarCSV() {
+      if(appData.registros.length === 0) {
+        alert("No hay registros para exportar");
+        return;
+      }
+      
+      let csv = "\uFEFFFecha;Hora;Producto;Defecto;Cantidad\n";
+      appData.registros.forEach(r => {
+        const fechaObj = new Date(r.fecha);
+        const f = fechaObj.toLocaleDateString();
+        const h = fechaObj.toLocaleTimeString();
+        csv += `${f};${h};"${r.productoNombre}";"${r.defectoNombre}";${r.cantidad}\n`;
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Reporte_Defectos_${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
