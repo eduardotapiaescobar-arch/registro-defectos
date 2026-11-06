@@ -30,14 +30,17 @@
     
     .input-group { margin-bottom: 12px; }
     .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
-    input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background-color: var(--bg-color); outline: none; }
-    input:focus, select:focus { border-color: var(--primary); }
+    select, input[type="text"] { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background-color: var(--bg-color); outline: none; }
+    select:focus, input[type="text"]:focus { border-color: var(--primary); }
     
     .btn { padding: 10px 16px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-block; text-align: center; width: 100%; }
     .btn-primary { background-color: var(--primary); color: white; }
     .btn-danger { background-color: var(--danger); color: white; }
     .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Botones Circulares del Contador */
+    .btn-circle { width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; padding: 0; }
     
     .flex-row { display: flex; gap: 8px; align-items: center; }
     
@@ -74,11 +77,18 @@
           <option value="">Seleccione un defecto...</option>
         </select>
       </div>
+      
+      <!-- CONTADOR CON BOTONES + y - -->
       <div class="input-group">
         <label>Cantidad</label>
-        <input type="number" id="gen-cantidad" placeholder="Ej: 5" min="1">
+        <div style="display: flex; align-items: center; gap: 20px; margin-top: 8px;">
+          <button class="btn btn-outline btn-circle" onclick="cambiarCantidad(-1)">-</button>
+          <span id="gen-cantidad-texto" style="font-size: 1.6rem; font-weight: bold; min-width: 40px; text-align: center;">1</span>
+          <button class="btn btn-outline btn-circle" onclick="cambiarCantidad(1)">+</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="guardarRegistro()">Guardar Registro</button>
+
+      <button class="btn btn-primary" style="margin-top: 12px;" onclick="guardarRegistro()">Guardar Registro</button>
     </div>
 
     <div class="card">
@@ -123,7 +133,8 @@
       productos: [], 
       registros: []
     };
-
+    
+    let cantidadActual = 1; // Variable para el contador
     const STORAGE_KEY = 'DefectosApp_Data';
 
     // --- INICIALIZACIÓN ---
@@ -172,6 +183,13 @@
       if(tab === 'ajustes') renderAjustes();
     }
 
+    // --- LÓGICA DE CONTADOR ---
+    function cambiarCantidad(valor) {
+      cantidadActual += valor;
+      if (cantidadActual < 1) cantidadActual = 1; // Mínimo 1
+      document.getElementById('gen-cantidad-texto').innerText = cantidadActual;
+    }
+
     // --- LÓGICA DE REGISTRO GENERAL ---
     function renderGeneral() {
       const selectProd = document.getElementById('gen-producto');
@@ -202,11 +220,10 @@
     function guardarRegistro() {
       const prodId = document.getElementById('gen-producto').value;
       const defId = document.getElementById('gen-defecto').value;
-      const cantStr = document.getElementById('gen-cantidad').value;
-      const cant = parseInt(cantStr);
+      const cant = cantidadActual;
 
-      if (!prodId || !defId || isNaN(cant) || cant <= 0) {
-        alert("Por favor completa todos los campos correctamente.");
+      if (!prodId || !defId) {
+        alert("Por favor selecciona un producto y un defecto.");
         return;
       }
 
@@ -223,12 +240,13 @@
         cantidad: cant
       };
 
-      appData.registros.unshift(nuevoRegistro); // Insertar al inicio
+      appData.registros.unshift(nuevoRegistro);
       guardarDatos();
       
-      // Limpiar formulario
-      document.getElementById('gen-cantidad').value = "";
+      // Limpiar formulario y resetear contador
       document.getElementById('gen-defecto').value = "";
+      cantidadActual = 1;
+      document.getElementById('gen-cantidad-texto').innerText = cantidadActual;
       
       renderHistorial();
     }
